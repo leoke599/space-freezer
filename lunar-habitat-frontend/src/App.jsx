@@ -1,16 +1,20 @@
-import { useState } from 'react'
 import './App.css'
+import React, { useEffect, useState } from 'react';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/')
+      .then(res => res.json())
+      .then(data => setMessage(data.message))
+  }, []);
 
   return (
     <>
       <h1>Lunar Habitat</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
+      <div>
+        <h1>{message}</h1>
       </div>
     </>
   )
