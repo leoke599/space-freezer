@@ -13,3 +13,4 @@ class Item(Base):
     date_added = Column(Date)
     expiration_date = Column(Date)
     temperature_requirement = Column(Float, nullable=True)  # °C
+    code = Column(String, unique=True, index=True)
