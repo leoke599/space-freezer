@@ -9,6 +9,9 @@ import uuid, os
 import barcode
 from barcode.writer import ImageWriter
 from fastapi.responses import FileResponse
+from datetime import datetime
+import pandas as pd
+import random
 
 app = FastAPI()
 
@@ -72,8 +75,41 @@ def get_barcode(code: str):
         return FileResponse(file_path, media_type="image/png")
     return {"error": "Barcode not found"}
 
-
-
+#Retrieve all items
 @app.get("/items/")
 def read_items(db: Session = Depends(get_db)):
     return db.query(Item).all()
+
+# Temperature simulation endpoint
+CSV_FILE = "temperature_data.csv"
+
+# Ensure the CSV exists
+df = pd.DataFrame(columns=["timestamp", "temperature"])
+df.to_csv(CSV_FILE, index=False)
+
+@app.get("/temperature")
+def get_temperature():
+    # Simulate a sensor reading
+    temp = round(random.uniform(18, 25), 2)  # replace with actual sensor read
+    now = datetime.now().isoformat()
+
+    # Append new reading
+    new_row = pd.DataFrame({"timestamp": [now], "temperature": [temp]})
+    new_row.to_csv(CSV_FILE, mode='a', header=False, index=False)
+
+    # Return all readings for the graph
+    all_data = pd.read_csv(CSV_FILE)
+    return all_data.to_dict(orient="records")
+
+@app.get("/power")
+def get_power():
+    watts = round(random.uniform(10, 50), 2)
+    now = datetime.now().isoformat()
+
+    # Write header only if file doesn't exist yet
+    file_exists = os.path.exists("power_data.csv")
+    new_row = pd.DataFrame({"timestamp": [now], "power": [watts]})
+    new_row.to_csv("power_data.csv", mode='a', header=not file_exists, index=False)
+
+    all_data = pd.read_csv("power_data.csv")
+    return all_data.to_dict(orient="records")

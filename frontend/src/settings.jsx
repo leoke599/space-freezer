@@ -1,48 +1,19 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { Line } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  LineElement,
-  PointElement,
-  CategoryScale,
-  LinearScale,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
 
-ChartJS.register(
-  LineElement, PointElement, CategoryScale, LinearScale, Title, Tooltip, Legend
-);
 
-function Power() {
-  const [data, setData] = useState([]);
+function Settings() {
+    const [theme, setTheme] = useState(
+        localStorage.getItem("theme") || "dark"
+    );
 
-  useEffect(() => {
-    const fetchData = () => {
-      axios.get("http://127.0.0.1:8000/power")
-        .then((res) => setData(res.data))
-        .catch((err) => console.error(err));
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 5000); // update every 5s
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const chartData = {
-    labels: data.map(item => new Date(item.timestamp).toLocaleTimeString()),
-    datasets: [
-      {
-        label: "Power (W)",
-        data: data.map(item => item.power),
-        borderColor: "rgb(75,192,192)",
-        fill: false,
-      },
-    ],
-  };
+    useEffect(() => {
+        if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+        } else {
+        document.documentElement.classList.remove("dark");
+        }
+        localStorage.setItem("theme", theme);
+    }, [theme]);
 
     return (
         <div className="min-h-screen">
@@ -79,18 +50,23 @@ function Power() {
                 ☰
             </button>
             <span className="flex-1 text-center text-3xl font-bold text-white">
-                Power
+                Settings
             </span>
             </div>
 
-            {/* Power Page Content */}
+            {/* Setting Page */}
             <div className="p-4">
-                <h1 className="text-2xl font-bold mb-4 text-white">Power Consumption</h1>
-                <Line data={chartData} />
+                <h1 className="text-2xl font-bold text-white mb-4 not-dark:text-black">Settings (ts doesn't work)</h1>
+                <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="px-3 py-2 rounded-md bg-gray-200 dark:bg-gray-700 dark:text-white transition"
+                >
+                {theme === "dark" ? "☀️ Switch to Light" : "🌙 Switch to Dark"}
+                </button>
             </div>
         </div>
     );
 }
 
 
-export default Power;
+export default Settings;

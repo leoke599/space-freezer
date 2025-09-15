@@ -1,0 +1,9 @@
+Nodejs: https://nodejs.org/en/download/
+
+Create a virtual environment (optional but recommended):
+python -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+pip install 
+
+Use uvicorn main:app --reload to start the backend
+Use npm run dev to load the frontend
