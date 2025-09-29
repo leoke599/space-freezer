@@ -1,8 +1,8 @@
 # main.py
 from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, relationship
 from database import SessionLocal, engine
-from models import Item, Base
+from models import Item, Base, Transaction
 from datetime import date
 from fastapi.middleware.cors import CORSMiddleware
 import uuid, os
@@ -34,6 +34,7 @@ def get_db():
 BARCODE_DIR = "barcodes"
 os.makedirs(BARCODE_DIR, exist_ok=True)
 
+# Create item with barcode generation and table
 @app.post("/items/")
 def create_item(name: str, quantity: int = 1, location: str = None,
                 expiration_date: date = None, temperature_requirement: float = None,
@@ -75,10 +76,48 @@ def get_barcode(code: str):
         return FileResponse(file_path, media_type="image/png")
     return {"error": "Barcode not found"}
 
-#Retrieve all items
+# Retrieve all items
 @app.get("/items/")
 def read_items(db: Session = Depends(get_db)):
     return db.query(Item).all()
+
+# Check out item
+@app.post("/items/{code}/check_out")
+def check_out_item(code: str, db: Session = Depends(get_db)):
+    item = db.query(Item).filter(Item.code == code).first()
+    if not item:
+        return {"error": "Item not found"}
+
+    if item.quantity > 0:
+        item.quantity -= 1
+    else:
+        return {"error": "No quantity available"}
+
+    tx = Transaction(item_id=item.id, action="check_out")
+    db.add(tx)
+    db.commit()
+    db.refresh(item)
+    return {"message": "Checked out", "item": item, "transaction": tx}
+
+# Check in item
+@app.post("/items/{code}/check_in")
+def check_in_item(code: str, db: Session = Depends(get_db)):
+    item = db.query(Item).filter(Item.code == code).first()
+    if not item:
+        return {"error": "Item not found"}
+
+    item.quantity += 1
+
+    tx = Transaction(item_id=item.id, action="check_in")
+    db.add(tx)
+    db.commit()
+    db.refresh(item)
+    return {"message": "Checked in", "item": item, "transaction": tx}
+
+# Transaction history
+@app.get("/transactions/")
+def read_transactions(db: Session = Depends(get_db)):
+    return db.query(Transaction).all()
 
 # Temperature simulation endpoint
 CSV_FILE = "temperature_data.csv"
@@ -87,6 +126,7 @@ CSV_FILE = "temperature_data.csv"
 df = pd.DataFrame(columns=["timestamp", "temperature"])
 df.to_csv(CSV_FILE, index=False)
 
+# Simulate temperature readings and return data for graph
 @app.get("/temperature")
 def get_temperature():
     # Simulate a sensor reading
@@ -101,6 +141,7 @@ def get_temperature():
     all_data = pd.read_csv(CSV_FILE)
     return all_data.to_dict(orient="records")
 
+# Power consumption simulation endpoint
 @app.get("/power")
 def get_power():
     watts = round(random.uniform(10, 50), 2)

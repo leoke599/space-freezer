@@ -1,8 +1,27 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import './index.css';
+import { useEffect, useState } from "react";
+import axios from "axios";
+import MiniSensorCard from "./MiniSensorCard";
 
-function Dashboard() {
+export default function Dashboard() {
+  const [tempData, setTempData] = useState([]);
+  const [powerData, setPowerData] = useState([]);
+
+  useEffect(() => {
+    const fetchData = () => {
+      axios.get("http://127.0.0.1:8000/temperature")
+        .then(res => setTempData(res.data))
+        .catch(err => console.error(err));
+
+      axios.get("http://127.0.0.1:8000/power")
+        .then(res => setPowerData(res.data))
+        .catch(err => console.error(err));
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="min-h-screen">
       {/* Navigation drawer button */}
@@ -42,33 +61,27 @@ function Dashboard() {
       </span>
       </div>
 
-      {/* Drawer Component */}
-      <div
-        id="drawer-navigation"
-        className="fixed top-0 left-0 z-40 w-64 h-screen p-4 overflow-y-auto transition-transform -translate-x-full"
-        tabIndex="-1"
-        aria-labelledby="drawer-navigation-label"
-      >
-        {/* drawer links go here later */}
-      </div>
-
-      {/* Main Page Content */}
-      {/* Temperature */}
-      <Link to="/temperature" className="text-3xl font-bold text-white ml-24">Temperature</Link>
-      <div className="flex justify-center mt-4 h-screen">
-        <div className="w-[90%] h-[60%] bg-gray rounded-lg shadow-md p-4 text-white flex items-center justify-center border-2 border-black">
-          <h1 className="text-2xl">Filler (imagine its a graph)</h1>
+      {/* Sensor cards */}
+      <div className="p-8 flex flex-col gap-8 items-center">
+        <div className="w-[90%]">
+          <MiniSensorCard
+            title="Temperature"
+            color="rgb(75,192,192)"
+            data={tempData}
+            valueKey="temperature"
+            unit="°C"
+          />
         </div>
-      </div>
-      {/* Power Consumption */}
-      <Link to="/power" className="text-3xl font-bold ml-24 text-white">Power Consumption</Link>
-      <div className="flex justify-center mt-4 mb-8 h-screen">
-        <div className="w-[90%] h-[60%] bg-gray rounded-lg shadow-md p-4 text-white flex items-center justify-center border-2 border-black">
-          <h1 className="text-2xl">Filler (imagine its a graph)</h1>
+        <div className="w-[90%]">
+          <MiniSensorCard
+            title="Power"
+            color="rgb(255,99,132)"
+            data={powerData}
+            valueKey="power"
+            unit="W"
+          />
         </div>
       </div>
     </div>
   );
 }
-
-export default Dashboard;
