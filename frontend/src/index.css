@@ -1,3 +1,92 @@
+:root {
+  color-scheme: light;
+  --color-page-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-panel: #f1f5f9;
+  --color-card: #ffffff;
+  --color-input-bg: #ffffff;
+  --color-text-primary: #0f172a;
+  --color-text-muted: #64748b;
+  --color-border-subtle: #e2e8f0;
+  --color-border-strong: #cbd5f5;
+  --color-divider: rgba(15, 23, 42, 0.08);
+  --color-overlay: rgba(15, 23, 42, 0.06);
+}
+
+.dark {
+  color-scheme: dark;
+  --color-page-bg: #0b0b0f;
+  --color-surface: #111114;
+  --color-panel: #17171c;
+  --color-card: #1d1f27;
+  --color-input-bg: #161822;
+  --color-text-primary: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-border-subtle: #262a33;
+  --color-border-strong: #323744;
+  --color-divider: rgba(148, 163, 184, 0.16);
+  --color-overlay: rgba(148, 163, 184, 0.08);
+}
+
 body {
-  background-color: #1d1d1d;
+  background-color: var(--color-page-bg);
+  color: var(--color-text-primary);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+body,
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+.app-surface {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.app-panel {
+  background-color: var(--color-panel);
+  color: var(--color-text-primary);
+}
+
+.app-card {
+  background-color: var(--color-card);
+  color: var(--color-text-primary);
+}
+
+.app-border {
+  border-color: var(--color-border-subtle);
+}
+
+.app-border-strong {
+  border-color: var(--color-border-strong);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+input,
+textarea,
+select {
+  background-color: var(--color-input-bg);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-subtle);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+button {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+button:active {
+  transform: translateY(1px);
 }

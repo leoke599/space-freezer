@@ -4,7 +4,7 @@ import { Line } from "react-chartjs-2";
 export default function MiniSensorCard({ title, color, data, valueKey, unit }) {
   if (!data || data.length === 0) {
     return (
-      <div className="bg-[#1a1a1a] text-white p-8 rounded-2xl shadow-lg w-full h-64 flex items-center justify-center">
+      <div className="app-card p-8 rounded-2xl shadow-lg w-full h-64 flex items-center justify-center border border-[var(--color-border-subtle)]">
         <p>Loading...</p>
       </div>
     );
@@ -35,7 +35,7 @@ export default function MiniSensorCard({ title, color, data, valueKey, unit }) {
   };
 
   return (
-    <div className="bg-[#1a1a1a] text-white p-8 rounded-2xl shadow-lg flex flex-col justify-between w-full h-64">
+    <div className="app-card p-8 rounded-2xl shadow-lg flex flex-col justify-between w-full h-64 border border-[var(--color-border-subtle)]">
       {/* Top section: title and latest value */}
       <div className="mb-4">
         <h2 className="text-xl font-semibold">{title}</h2>

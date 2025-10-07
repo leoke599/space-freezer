@@ -1,6 +1,6 @@
 # models.py
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Date
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Date, Boolean, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -30,3 +30,17 @@ class Transaction(Base):
 
     # Link back to the item
     item = relationship("Item", backref="transactions")
+
+# New Alert model
+class Alert(Base):
+    __tablename__ = "alerts"
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, nullable=False)            # e.g. 'inventory', 'temperature', 'power'
+    severity = Column(String, nullable=False)        # 'info' | 'warning' | 'critical'
+    message = Column(Text, nullable=False)
+    item_id = Column(Integer, ForeignKey("items.id"), nullable=True)
+    is_acknowledged = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+
+    item = relationship("Item")

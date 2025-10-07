@@ -2,18 +2,22 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session, relationship
 from database import SessionLocal, engine
-from models import Item, Base, Transaction
-from datetime import date
+from models import Item, Base, Transaction, Alert
 from fastapi.middleware.cors import CORSMiddleware
 import uuid, os
 import barcode
 from barcode.writer import ImageWriter
 from fastapi.responses import FileResponse
-from datetime import datetime
 import pandas as pd
 import random
+import asyncio
+from datetime import date, datetime
+from config import EXPIRY_SOON_DAYS, EXPIRY_URGENT_DAYS, CHECK_INTERVAL_SECONDS
+from services.expiry import expiry_status
+from routes_mission import router as mission_router
 
 app = FastAPI()
+app.include_router(mission_router)
 
 #Allow requests from the frontend
 app.add_middleware(
@@ -29,6 +33,71 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Expiry check background task
+async def expiry_sweeper():
+    while True:
+        try:
+            db: Session = SessionLocal()
+            today = date.today()
+            items = db.query(Item).all()
+            for it in items:
+                status, days = expiry_status(it.expiration_date, today)
+
+                # Avoid duplicating identical active alerts: only create when needed
+                def already_open(msg: str):
+                    return db.query(Alert).filter(
+                        Alert.message == msg,
+                        Alert.resolved_at.is_(None)
+                    ).first() is not None
+
+                if status == "expired":
+                    msg = f"'{it.name}' is EXPIRED (expired {abs(days)} day(s) ago)."
+                    if not already_open(msg):
+                        db.add(Alert(
+                            type="inventory", severity="critical",
+                            message=msg, item_id=it.id
+                        ))
+
+                elif status == "urgent":
+                    msg = f"'{it.name}' expires in {days} day(s)."
+                    if not already_open(msg):
+                        db.add(Alert(
+                            type="inventory", severity="warning",
+                            message=msg, item_id=it.id
+                        ))
+
+                elif status == "soon":
+                    msg = f"'{it.name}' expires in {days} day(s)."
+                    if not already_open(msg):
+                        db.add(Alert(
+                            type="inventory", severity="info",
+                            message=msg, item_id=it.id
+                        ))
+
+                # Optional: auto-resolve old alerts if item updated/removed
+                if status in ("ok","no_date"):
+                    # resolve any open alerts for this item
+                    open_alerts = db.query(Alert).filter(
+                        Alert.item_id == it.id,
+                        Alert.resolved_at.is_(None),
+                        Alert.type == "inventory"
+                    ).all()
+                    now = datetime.utcnow()
+                    for a in open_alerts:
+                        a.resolved_at = now
+
+            db.commit()
+        except Exception as e:
+            # You could log this
+            pass
+        finally:
+            db.close()
+        await asyncio.sleep(CHECK_INTERVAL_SECONDS)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(expiry_sweeper())
 
 # Create barcode directory if not exists
 BARCODE_DIR = "barcodes"
