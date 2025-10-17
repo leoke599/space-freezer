@@ -15,9 +15,12 @@ from datetime import date, datetime
 from config import EXPIRY_SOON_DAYS, EXPIRY_URGENT_DAYS, CHECK_INTERVAL_SECONDS
 from services.expiry import expiry_status
 from routes_mission import router as mission_router
+from routes_settings import router as settings_router
+
 
 app = FastAPI()
 app.include_router(mission_router)
+app.include_router(settings_router)
 
 #Allow requests from the frontend
 app.add_middleware(
@@ -98,6 +101,7 @@ async def expiry_sweeper():
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(expiry_sweeper())
+    asyncio.create_task(sensor_writer())
 
 # Create barcode directory if not exists
 BARCODE_DIR = "barcodes"
@@ -188,38 +192,74 @@ def check_in_item(code: str, db: Session = Depends(get_db)):
 def read_transactions(db: Session = Depends(get_db)):
     return db.query(Transaction).all()
 
-# Temperature simulation endpoint
-CSV_FILE = "temperature_data.csv"
+# Temperature and power CSVs + max rows
+TEMPERATURE_FILE = "temperature_data.csv"
+POWER_FILE = "power_data.csv"
+MAX_ROWS = 100
+SENSOR_INTERVAL_SECONDS = 60  # Write sensor data every 60 seconds
 
-# Ensure the CSV exists
-df = pd.DataFrame(columns=["timestamp", "temperature"])
-df.to_csv(CSV_FILE, index=False)
+if not os.path.exists(TEMPERATURE_FILE):
+    pd.DataFrame(columns=["timestamp", "temperature"]).to_csv(TEMPERATURE_FILE, index=False)
+if not os.path.exists(POWER_FILE):
+    pd.DataFrame(columns=["timestamp", "power"]).to_csv(POWER_FILE, index=False)
+
+# Background task: periodically write sensor readings to CSV
+async def sensor_writer():
+    while True:
+        try:
+            now = datetime.utcnow().isoformat()
+            
+            # Write temperature reading
+            temp = round(random.uniform(18, 25), 2)
+            pd.DataFrame({"timestamp": [now], "temperature": [temp]}).to_csv(
+                TEMPERATURE_FILE, mode='a', header=False, index=False
+            )
+            
+            # Write power reading
+            watts = round(random.uniform(10, 50), 2)
+            pd.DataFrame({"timestamp": [now], "power": [watts]}).to_csv(
+                POWER_FILE, mode='a', header=False, index=False
+            )
+
+            # Trim temperature file to MAX_ROWS
+            try:
+                tdata = pd.read_csv(TEMPERATURE_FILE)
+                if len(tdata) > MAX_ROWS:
+                    tdata.tail(MAX_ROWS).to_csv(TEMPERATURE_FILE, index=False)
+            except Exception:
+                pass
+
+            # Trim power file to MAX_ROWS
+            try:
+                pdata = pd.read_csv(POWER_FILE)
+                if len(pdata) > MAX_ROWS:
+                    pdata.tail(MAX_ROWS).to_csv(POWER_FILE, index=False)
+            except Exception:
+                pass
+
+        except Exception:
+            pass
+
+        await asyncio.sleep(SENSOR_INTERVAL_SECONDS)
 
 # Simulate temperature readings and return data for graph
 @app.get("/temperature")
 def get_temperature():
-    # Simulate a sensor reading
-    temp = round(random.uniform(18, 25), 2)  # replace with actual sensor read
-    now = datetime.now().isoformat()
-
-    # Append new reading
-    new_row = pd.DataFrame({"timestamp": [now], "temperature": [temp]})
-    new_row.to_csv(CSV_FILE, mode='a', header=False, index=False)
-
-    # Return all readings for the graph
-    all_data = pd.read_csv(CSV_FILE)
-    return all_data.to_dict(orient="records")
+    try:
+        all_data = pd.read_csv(TEMPERATURE_FILE)
+        if len(all_data) > MAX_ROWS:
+            all_data = all_data.tail(MAX_ROWS)
+        return all_data.to_dict(orient="records")
+    except Exception:
+        return []
 
 # Power consumption simulation endpoint
 @app.get("/power")
 def get_power():
-    watts = round(random.uniform(10, 50), 2)
-    now = datetime.now().isoformat()
-
-    # Write header only if file doesn't exist yet
-    file_exists = os.path.exists("power_data.csv")
-    new_row = pd.DataFrame({"timestamp": [now], "power": [watts]})
-    new_row.to_csv("power_data.csv", mode='a', header=not file_exists, index=False)
-
-    all_data = pd.read_csv("power_data.csv")
-    return all_data.to_dict(orient="records")
+    try:
+        all_data = pd.read_csv(POWER_FILE)
+        if len(all_data) > MAX_ROWS:
+            all_data = all_data.tail(MAX_ROWS)
+        return all_data.to_dict(orient="records")
+    except Exception:
+        return []

@@ -1,7 +1,28 @@
 import { useEffect, useState } from "react";
 
-
 function Settings() {
+    const [s, setS] = useState({});
+    const [saving, setSaving] = useState(false);
+    
+    const fetchSettings = () => {
+        fetch("http://127.0.0.1:8000/settings")
+            .then(r => r.json())
+            .then(setS);
+    };
+    useEffect(fetchSettings, []);
+
+    const upd = (k,v) => setS(s=>({...s,[k]:v}));
+
+    const save = () => {
+        setSaving(true);
+        fetch("http://127.0.0.1:8000/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(s)
+        })
+        .then(() => setSaving(false));
+    };
+
     const [theme, setTheme] = useState(
         localStorage.getItem("theme") || "dark"
     );
@@ -56,7 +77,7 @@ function Settings() {
 
             {/* Setting Page */}
             <div className="p-4">
-                <h1 className="text-2xl font-bold text-white mb-4 not-dark:text-black">Settings (ts doesn't work)</h1>
+                <h1 className="text-2xl font-bold">Settings</h1>
                 <div id="light-mode" className="mb-4 text-white not-dark:text-black">
                     <button
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -66,9 +87,54 @@ function Settings() {
                     </button>
                 </div>
             </div>
+            <div className="max-w-4xl mx-auto p-4 space-y-6">
+                <section className="border rounded-2xl p-4">
+                    <h3 className="font-semibold mb-3">Safety & Thresholds</h3>
+                    <div className="grid md:grid-cols-3 gap-3">
+                    <Number label="Target Temp (°C)" val={s.target_temp_c} onChange={v=>upd("target_temp_c", v)} step="0.1"/>
+                    <Number label="Nominal Min" val={s.temp_nominal_min} onChange={v=>upd("temp_nominal_min", v)} step="0.1"/>
+                    <Number label="Nominal Max" val={s.temp_nominal_max} onChange={v=>upd("temp_nominal_max", v)} step="0.1"/>
+                    <Number label="Critical High" val={s.temp_critical_high} onChange={v=>upd("temp_critical_high", v)} step="0.1"/>
+                    <Number label="Critical Low" val={s.temp_critical_low} onChange={v=>upd("temp_critical_low", v)} step="0.1"/>
+                    </div>
+                </section>
+
+                <section className="border rounded-2xl p-4">
+                    <h3 className="font-semibold mb-3">Alerts</h3>
+                    <Toggle label="Enable Alerts" val={!!s.alerts_enabled} onChange={v=>upd("alerts_enabled", v)}/>
+                    <Number label="Alert Debounce (s)" val={s.alert_debounce_s} onChange={v=>upd("alert_debounce_s", v)} />
+                </section>
+
+                <button onClick={save} className="px-4 py-2 rounded-xl border">
+                    {saving ? "Saving..." : "Save Settings"}
+                </button>
+            </div>
         </div>
     );
 }
 
+function Number({label,val,onChange,step}) {
+  return (
+    <label className="text-sm">
+      <div className="text-neutral-400 mb-1">{label}</div>
+      <input type="number" step={step||"1"} value={val ?? ""}
+        onChange={e=>{
+          const v = e.target.value;
+          // send undefined when empty so parent state stays empty,
+          // but keep input controlled by using "" for the value prop
+          onChange(v === "" ? undefined : parseFloat(v));
+        }}
+        className="w-full rounded-lg bg-neutral-900 border p-2"/>
+    </label>
+  );
+}
+function Toggle({label,val,onChange}) {
+  return (
+    <label className="flex items-center gap-3">
+      <input type="checkbox" checked={!!val} onChange={e=>onChange(e.target.checked)} />
+      <span className="text-sm">{label}</span>
+    </label>
+  );
+}
 
 export default Settings;

@@ -44,3 +44,9 @@ class Alert(Base):
     resolved_at = Column(DateTime, nullable=True)
 
     item = relationship("Item")
+
+# New Setting model
+class Setting(Base):
+    __tablename__ = "settings"
+    key = Column(String, primary_key=True)
+    value = Column(Text, nullable=False)  # store JSON strings
