@@ -9,6 +9,7 @@ from datetime import date
 from models import Item, Alert
 from services.expiry import expiry_status
 from services.status import Gauge, classify_temp, classify_power, classify_humidity
+from services import settings as settings_svc
 from database import SessionLocal
 
 router = APIRouter(prefix="/mission", tags=["mission"])
@@ -22,11 +23,15 @@ def get_db():
 
 @router.get("/panel")
 def mission_panel(db: Session = Depends(get_db)):
+    # Fetch settings from database
+    settings = settings_svc.get_all(db)
+    
     current_temp_c = latest_metric("temperature_data.csv", "temperature")
     current_power_w = latest_metric("power_data.csv", "power")
     current_humidity = latest_metric("humidity_data.csv", "humidity")
 
-    temp = build_gauge(current_temp_c, "C", classify_temp, "No temperature readings yet.")
+    # Pass settings to classify_temp
+    temp = build_gauge(current_temp_c, "C", lambda c: classify_temp(c, settings), "No temperature readings yet.")
     power = build_gauge(current_power_w, "W", classify_power, "No power readings yet.")
     humidity = None
     if current_humidity is not None:

@@ -1,1 +1,8 @@
-pip install fastapi uvicorn
+fastapi
+uvicorn[standard]
+sqlalchemy
+pandas
+python-barcode[images]
+pillow
+pyserial
+requests

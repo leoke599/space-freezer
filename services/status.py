@@ -9,10 +9,32 @@ class Gauge:
     status: Literal["nominal","elevated","critical"]
     note: Optional[str] = None
 
-def classify_temp(c: float) -> str:
-    # Example freezer target around 0°C (adjust to your spec)
-    if -2 <= c <= 2:  return "nominal"
-    if -5 <= c < -2 or 2 < c <= 5: return "elevated"
+def classify_temp(c: float, settings: dict = None) -> str:
+    """
+    Classify temperature based on settings from database.
+    Falls back to default values if settings not provided.
+    """
+    if settings is None:
+        # Default fallback values
+        temp_nominal_min = -2
+        temp_nominal_max = 2
+        temp_critical_low = -5
+        temp_critical_high = 5
+    else:
+        temp_nominal_min = settings.get("temp_nominal_min", -2)
+        temp_nominal_max = settings.get("temp_nominal_max", 2)
+        temp_critical_low = settings.get("temp_critical_low", -5)
+        temp_critical_high = settings.get("temp_critical_high", 5)
+    
+    # Check if within nominal range
+    if temp_nominal_min <= c <= temp_nominal_max:
+        return "nominal"
+    
+    # Check if within elevated range (between nominal and critical)
+    if temp_critical_low <= c < temp_nominal_min or temp_nominal_max < c <= temp_critical_high:
+        return "elevated"
+    
+    # Outside critical thresholds
     return "critical"
 
 def classify_power(w: float) -> str:

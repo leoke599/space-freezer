@@ -25,8 +25,10 @@ app.include_router(settings_router)
 #Allow requests from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:8000", "*"],  # Allow Pi access
     allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Dependency: get DB session
@@ -204,16 +206,18 @@ if not os.path.exists(POWER_FILE):
     pd.DataFrame(columns=["timestamp", "power"]).to_csv(POWER_FILE, index=False)
 
 # Background task: periodically write sensor readings to CSV
+# NOTE: Comment out the temperature writing section if you're using real Arduino data
 async def sensor_writer():
     while True:
         try:
             now = datetime.utcnow().isoformat()
             
-            # Write temperature reading
-            temp = round(random.uniform(18, 25), 2)
-            pd.DataFrame({"timestamp": [now], "temperature": [temp]}).to_csv(
-                TEMPERATURE_FILE, mode='a', header=False, index=False
-            )
+            # OPTIONAL: Comment out these lines when using real Arduino temperature data
+            # Write temperature reading (simulated)
+            # temp = round(random.uniform(18, 25), 2)
+            # pd.DataFrame({"timestamp": [now], "temperature": [temp]}).to_csv(
+            #     TEMPERATURE_FILE, mode='a', header=False, index=False
+            # )
             
             # Write power reading
             watts = round(random.uniform(10, 50), 2)
@@ -242,6 +246,27 @@ async def sensor_writer():
 
         await asyncio.sleep(SENSOR_INTERVAL_SECONDS)
 
+# POST endpoint to receive temperature data from Arduino
+@app.post("/temperature")
+def post_temperature(temperature: float):
+    try:
+        now = datetime.utcnow().isoformat()
+        pd.DataFrame({"timestamp": [now], "temperature": [temperature]}).to_csv(
+            TEMPERATURE_FILE, mode='a', header=False, index=False
+        )
+        
+        # Trim to MAX_ROWS
+        try:
+            tdata = pd.read_csv(TEMPERATURE_FILE)
+            if len(tdata) > MAX_ROWS:
+                tdata.tail(MAX_ROWS).to_csv(TEMPERATURE_FILE, index=False)
+        except Exception:
+            pass
+            
+        return {"status": "success", "temperature": temperature, "timestamp": now}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # Simulate temperature readings and return data for graph
 @app.get("/temperature")
 def get_temperature():
@@ -263,3 +288,34 @@ def get_power():
         return all_data.to_dict(orient="records")
     except Exception:
         return []
+# ===== PRODUCTION FRONTEND SERVING =====
+# Serve the built React frontend from FastAPI (for Raspberry Pi deployment)
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+FRONTEND_BUILD_DIR = Path(__file__).parent / 'frontend' / 'dist'
+
+if FRONTEND_BUILD_DIR.exists():
+    # Mount static assets (JS, CSS, images)
+    assets_dir = FRONTEND_BUILD_DIR / 'assets'
+    if assets_dir.exists():
+        app.mount('/assets', StaticFiles(directory=str(assets_dir)), name='assets')
+    
+    # Catch-all route: serve index.html for all frontend routes (SPA)
+    @app.get('/{full_path:path}')
+    async def serve_react_app(full_path: str):
+        # Don't intercept API routes
+        api_prefixes = ['items', 'temperature', 'power', 'settings', 'mission', 'barcode', 'transactions', 'docs', 'openapi.json']
+        if any(full_path.startswith(prefix) for prefix in api_prefixes):
+            return {'error': 'API endpoint not found'}
+        
+        # Serve index.html for all other routes (React Router will handle them)
+        index_file = FRONTEND_BUILD_DIR / 'index.html'
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        return {'error': 'Frontend not built. Run: cd frontend && npm run build'}
+else:
+    print('  Frontend build not found at:', FRONTEND_BUILD_DIR)
+    print('    Run: cd frontend && npm run build')
+    print('    For development, use: npm run dev (in frontend folder)')
+

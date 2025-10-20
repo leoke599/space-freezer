@@ -22,7 +22,7 @@ def get_all(db: Session) -> dict:
 
 def update_many(db: Session, payload: dict):
     for k,v in payload.items():
-        row = db.query(Setting).get(k)
+        row = db.query(Setting).filter(Setting.key == k).first()
         if not row:
             row = Setting(key=k, value=json.dumps(v))
             db.add(row)
