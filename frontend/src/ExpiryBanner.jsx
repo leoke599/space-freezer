@@ -1,12 +1,13 @@
 // ExpiryBanner.jsx
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "./config";
 
 export default function ExpiryBanner() {
   const [next, setNext] = useState([]);
 
   useEffect(() => {
     async function load() {
-      const res = await fetch("http://127.0.0.1:8000/mission/panel");
+      const res = await fetch(`${API_BASE_URL}/mission/panel`);
       const data = await res.json();
       setNext(data?.inventory?.next || []);
     }

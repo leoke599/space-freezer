@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "./config";
 
 export default function Inventory() {
   const [items, setItems] = useState([]);
@@ -17,7 +18,7 @@ export default function Inventory() {
   const [tempReq, setTempReq] = useState("");
 
   const fetchItems = () => {
-    axios.get("http://127.0.0.1:8000/items/")
+    axios.get(`${API_BASE_URL}/items/`)
       .then((res) => setItems(res.data))
       .catch((err) => console.error(err));
   };
@@ -43,7 +44,7 @@ export default function Inventory() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://127.0.0.1:8000/items/", null, {
+      await axios.post(`${API_BASE_URL}/items/`, null, {
         params: {
           name,
           quantity,
@@ -72,7 +73,7 @@ export default function Inventory() {
 
     try {
       const endpoint = mode === "check_out" ? "check_out" : "check_in";
-      const { data } = await axios.post(`http://127.0.0.1:8000/items/${scanCode}/${endpoint}`);
+      const { data } = await axios.post(`${API_BASE_URL}/items/${scanCode}/${endpoint}`);
 
       if (data?.error) {
         setFeedback({ type: "error", message: data.error });

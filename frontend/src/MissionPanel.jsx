@@ -1,5 +1,6 @@
 // MissionPanel.jsx
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "./config";
 
 function Card({ title, value, unit, status }) {
   const color = {
@@ -21,7 +22,7 @@ export default function MissionPanel() {
 
   useEffect(() => {
     async function load() {
-      const res = await fetch("http://127.0.0.1:8000/mission/panel");
+      const res = await fetch(`${API_BASE_URL}/mission/panel`);
       setData(await res.json());
     }
     load();

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "./config";
 
 function Settings() {
     const [s, setS] = useState({});
     const [saving, setSaving] = useState(false);
     
     const fetchSettings = () => {
-        fetch("http://127.0.0.1:8000/settings")
+        fetch(`${API_BASE_URL}/settings`)
             .then(r => r.json())
             .then(setS);
     };
@@ -15,7 +16,7 @@ function Settings() {
 
     const save = () => {
         setSaving(true);
-        fetch("http://127.0.0.1:8000/settings", {
+        fetch(`${API_BASE_URL}/settings`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(s)

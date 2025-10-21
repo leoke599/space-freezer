@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "./config";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -21,7 +22,7 @@ function Power() {
 
   useEffect(() => {
     const fetchData = () => {
-      axios.get("http://127.0.0.1:8000/power")
+      axios.get(`${API_BASE_URL}/power`)
         .then((res) => setData(res.data))
         .catch((err) => console.error(err));
     };
