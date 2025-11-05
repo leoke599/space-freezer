@@ -87,6 +87,7 @@ function Power() {
                 <a href="/Temperature" className="hover:text-blue-500">Temperature</a>
                 <a href="/Power" className="hover:text-blue-500">Power</a>
                 <a href="/Inventory" className="hover:text-blue-500">Inventory</a>
+                <a href="/Nutrition" className="hover:text-blue-500">Nutrition</a>
                 <a href="/Settings" className="hover:text-blue-500">Settings</a>
                 </nav>
             </div>

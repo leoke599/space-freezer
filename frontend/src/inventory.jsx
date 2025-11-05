@@ -10,12 +10,27 @@ export default function Inventory() {
   const [feedback, setFeedback] = useState(null);
   const scanInputRef = useRef(null);
 
+  // Search & Filter state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all"); // all, expired, expiring, ok
+
   // Form state
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [location, setLocation] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [tempReq, setTempReq] = useState("");
+  
+  // Nutrition form state (optional)
+  const [showNutrition, setShowNutrition] = useState(false);
+  const [servingSize, setServingSize] = useState("");
+  const [calories, setCalories] = useState("");
+  const [protein, setProtein] = useState("");
+  const [carbs, setCarbs] = useState("");
+  const [fat, setFat] = useState("");
+  const [fiber, setFiber] = useState("");
+  const [sodium, setSodium] = useState("");
+  const [sugar, setSugar] = useState("");
 
   const fetchItems = () => {
     axios.get(`${API_BASE_URL}/items/`)
@@ -44,21 +59,42 @@ export default function Inventory() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_BASE_URL}/items/`, null, {
-        params: {
-          name,
-          quantity,
-          location,
-          expiration_date: expirationDate || null,
-          temperature_requirement: tempReq || null,
-        },
-      });
+      const params = {
+        name,
+        quantity,
+        location,
+        expiration_date: expirationDate || null,
+        temperature_requirement: tempReq || null,
+      };
+      
+      // Add nutrition data if provided
+      if (servingSize) params.serving_size = servingSize;
+      if (calories) params.calories = parseFloat(calories);
+      if (protein) params.protein = parseFloat(protein);
+      if (carbs) params.carbs = parseFloat(carbs);
+      if (fat) params.fat = parseFloat(fat);
+      if (fiber) params.fiber = parseFloat(fiber);
+      if (sodium) params.sodium = parseFloat(sodium);
+      if (sugar) params.sugar = parseFloat(sugar);
+      
+      await axios.post(`${API_BASE_URL}/items/`, null, { params });
+      
       setShowForm(false);
       setName("");
       setQuantity(1);
       setLocation("");
       setExpirationDate("");
       setTempReq("");
+      // Reset nutrition fields
+      setServingSize("");
+      setCalories("");
+      setProtein("");
+      setCarbs("");
+      setFat("");
+      setFiber("");
+      setSodium("");
+      setSugar("");
+      setShowNutrition(false);
       fetchItems();
     } catch (err) {
       console.error(err);
@@ -95,6 +131,40 @@ export default function Inventory() {
     }
   };
 
+  // Helper function to determine expiration status
+  const getExpiryStatus = (expirationDate) => {
+    if (!expirationDate) return "no_date";
+    const today = new Date();
+    const expiry = new Date(expirationDate);
+    const diffTime = expiry - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return "expired";
+    if (diffDays <= 2) return "urgent";
+    if (diffDays <= 7) return "soon";
+    return "ok";
+  };
+
+  // Filter and search items
+  const filteredItems = items.filter((item) => {
+    // Search filter
+    const matchesSearch =
+      searchTerm === "" ||
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Status filter
+    if (filterStatus === "all") return matchesSearch;
+    
+    const status = getExpiryStatus(item.expiration_date);
+    if (filterStatus === "expired") return matchesSearch && status === "expired";
+    if (filterStatus === "expiring") return matchesSearch && (status === "urgent" || status === "soon");
+    if (filterStatus === "ok") return matchesSearch && (status === "ok" || status === "no_date");
+    
+    return matchesSearch;
+  });
+
   return (
     <div className="min-h-screen bg-[var(--color-page-bg)] text-[var(--color-text-primary)] transition-colors">
       {/* Navigation drawer button */}
@@ -116,6 +186,7 @@ export default function Inventory() {
           <a href="/Temperature" className="hover:text-blue-500">Temperature</a>
           <a href="/Power" className="hover:text-blue-500">Power</a>
           <a href="/Inventory" className="hover:text-blue-500">Inventory</a>
+          <a href="/Nutrition" className="hover:text-blue-500">Nutrition</a>
           <a href="/Settings" className="hover:text-blue-500">Settings</a>
         </nav>
       </div>
@@ -180,6 +251,86 @@ export default function Inventory() {
             placeholder="Temperature requirement"
             className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
           />
+          
+          {/* Nutrition Information Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowNutrition(!showNutrition)}
+            className="text-left text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-2"
+          >
+            {showNutrition ? "▼" : "▶"} Add Nutrition Information (Optional)
+          </button>
+          
+          {/* Collapsible Nutrition Fields */}
+          {showNutrition && (
+            <div className="space-y-3 pl-4 border-l-2 border-blue-300 dark:border-blue-600">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  value={servingSize}
+                  onChange={(e) => setServingSize(e.target.value)}
+                  placeholder="Serving size (e.g., 100g, 1 cup)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={calories}
+                  onChange={(e) => setCalories(e.target.value)}
+                  placeholder="Calories (kcal)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={protein}
+                  onChange={(e) => setProtein(e.target.value)}
+                  placeholder="Protein (g)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={carbs}
+                  onChange={(e) => setCarbs(e.target.value)}
+                  placeholder="Carbs (g)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={fat}
+                  onChange={(e) => setFat(e.target.value)}
+                  placeholder="Fat (g)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={fiber}
+                  onChange={(e) => setFiber(e.target.value)}
+                  placeholder="Fiber (g)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={sodium}
+                  onChange={(e) => setSodium(e.target.value)}
+                  placeholder="Sodium (mg)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={sugar}
+                  onChange={(e) => setSugar(e.target.value)}
+                  placeholder="Sugar (g)"
+                  className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm"
+                />
+              </div>
+            </div>
+          )}
+          
           <button
             type="submit"
             className="bg-green-500 text-white px-4 py-2 rounded"
@@ -189,6 +340,72 @@ export default function Inventory() {
         </form>
       )}
 
+      {/* Search and Filter Section */}
+      <div className="app-card border border-[var(--color-border-subtle)] p-4 rounded-lg mb-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search Input */}
+          <div className="flex-1">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="🔍 Search by name, location, or code..."
+              className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
+            />
+          </div>
+          
+          {/* Filter Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilterStatus("all")}
+              className={`px-3 py-2 rounded text-sm transition-colors ${
+                filterStatus === "all"
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "app-panel border border-[var(--color-border-subtle)]"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterStatus("expired")}
+              className={`px-3 py-2 rounded text-sm transition-colors ${
+                filterStatus === "expired"
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "app-panel border border-[var(--color-border-subtle)]"
+              }`}
+            >
+              Expired
+            </button>
+            <button
+              onClick={() => setFilterStatus("expiring")}
+              className={`px-3 py-2 rounded text-sm transition-colors ${
+                filterStatus === "expiring"
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "app-panel border border-[var(--color-border-subtle)]"
+              }`}
+            >
+              Expiring
+            </button>
+            <button
+              onClick={() => setFilterStatus("ok")}
+              className={`px-3 py-2 rounded text-sm transition-colors ${
+                filterStatus === "ok"
+                  ? "bg-green-500 text-white shadow-sm"
+                  : "app-panel border border-[var(--color-border-subtle)]"
+              }`}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+        
+        {/* Results count */}
+        <div className="mt-2 text-sm text-muted">
+          Showing {filteredItems.length} of {items.length} items
+        </div>
+      </div>
+
+      {/* Barcode Scanner Section */}
       <div className="border border-[var(--color-border-subtle)] rounded-lg p-4 app-card mb-6 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-2">
@@ -270,7 +487,7 @@ export default function Inventory() {
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <tr key={item.id} className="border-b border-[var(--color-border-subtle)] even:bg-[var(--color-panel)]">
               <td className="border border-[var(--color-border-subtle)] px-2 py-2">{item.name}</td>
               <td className="border border-[var(--color-border-subtle)] px-2 py-2">{item.quantity}</td>

@@ -6,6 +6,7 @@ import Inventory from './inventory';
 import Dashboard from './dashboard';
 import Power from './power';
 import Settings from './settings';
+import Nutrition from './nutrition';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/temperature" element={<Temperature />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/power" element={<Power />} />
+        <Route path="/nutrition" element={<Nutrition />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </Router>

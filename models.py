@@ -18,6 +18,16 @@ class Item(Base):
     expiration_date = Column(Date)
     temperature_requirement = Column(Float, nullable=True)  # °C
     code = Column(String, unique=True, index=True)
+    
+    # Nutritional information (per serving/unit)
+    serving_size = Column(String, nullable=True)  # e.g. "100g", "1 cup"
+    calories = Column(Float, nullable=True)       # kcal
+    protein = Column(Float, nullable=True)        # grams
+    carbs = Column(Float, nullable=True)          # grams
+    fat = Column(Float, nullable=True)            # grams
+    fiber = Column(Float, nullable=True)          # grams
+    sodium = Column(Float, nullable=True)         # mg
+    sugar = Column(Float, nullable=True)          # grams
 
 # New Transaction model
 class Transaction(Base):

@@ -113,6 +113,9 @@ os.makedirs(BARCODE_DIR, exist_ok=True)
 @app.post("/items/")
 def create_item(name: str, quantity: int = 1, location: str = None,
                 expiration_date: date = None, temperature_requirement: float = None,
+                serving_size: str = None, calories: float = None, protein: float = None,
+                carbs: float = None, fat: float = None, fiber: float = None,
+                sodium: float = None, sugar: float = None,
                 db: Session = Depends(get_db)):
 
     # Create item with unique code
@@ -124,7 +127,16 @@ def create_item(name: str, quantity: int = 1, location: str = None,
         date_added=date.today(),
         expiration_date=expiration_date,
         temperature_requirement=temperature_requirement,
-        code=unique_code
+        code=unique_code,
+        # Nutritional information
+        serving_size=serving_size,
+        calories=calories,
+        protein=protein,
+        carbs=carbs,
+        fat=fat,
+        fiber=fiber,
+        sodium=sodium,
+        sugar=sugar
     )
     db.add(item)
     db.commit()
@@ -251,6 +263,57 @@ async def sensor_writer():
 def post_temperature(temperature: float):
     try:
         now = datetime.utcnow().isoformat()
+        
+        # Fault detection for DS18B20 sensor
+        # -127°C or 85°C are common error values
+        # Also reject unrealistic values for a freezer
+        is_fault = False
+        fault_reason = None
+        
+        if temperature <= -100 or temperature == -127:
+            is_fault = True
+            fault_reason = "Sensor disconnected or loose connection (-127°C)"
+        elif temperature == 85:
+            is_fault = True
+            fault_reason = "Sensor not properly initialized (85°C)"
+        elif temperature > 100 or temperature < -200:
+            is_fault = True
+            fault_reason = f"Unrealistic temperature reading ({temperature}°C)"
+        
+        if is_fault:
+            # Create an alert for the sensor fault
+            from database import SessionLocal
+            from models import Alert
+            db = SessionLocal()
+            try:
+                # Check if there's already an unacknowledged sensor fault alert
+                existing_alert = db.query(Alert).filter(
+                    Alert.type == "temperature",
+                    Alert.severity == "warning",
+                    Alert.message.like("%Sensor fault%"),
+                    Alert.is_acknowledged == False
+                ).first()
+                
+                if not existing_alert:
+                    alert = Alert(
+                        type="temperature",
+                        severity="warning",
+                        message=f"Sensor fault detected: {fault_reason}",
+                        is_acknowledged=False
+                    )
+                    db.add(alert)
+                    db.commit()
+            finally:
+                db.close()
+            
+            return {
+                "status": "fault", 
+                "temperature": temperature, 
+                "timestamp": now,
+                "message": fault_reason
+            }
+        
+        # Save valid temperature reading
         pd.DataFrame({"timestamp": [now], "temperature": [temperature]}).to_csv(
             TEMPERATURE_FILE, mode='a', header=False, index=False
         )
@@ -277,6 +340,72 @@ def get_temperature():
         return all_data.to_dict(orient="records")
     except Exception:
         return []
+
+# Get temperature sensor status
+@app.get("/temperature/status")
+def get_temperature_status():
+    """Check if the temperature sensor is working properly"""
+    from database import SessionLocal
+    from models import Alert
+    db = SessionLocal()
+    try:
+        # Check for recent sensor fault alerts
+        recent_fault = db.query(Alert).filter(
+            Alert.type == "temperature",
+            Alert.severity == "warning",
+            Alert.message.like("%Sensor fault%"),
+            Alert.is_acknowledged == False
+        ).first()
+        
+        # Check if we have recent temperature data
+        try:
+            tdata = pd.read_csv(TEMPERATURE_FILE)
+            if len(tdata) > 0:
+                last_reading_time = pd.to_datetime(tdata.iloc[-1]['timestamp'])
+                time_since_reading = (datetime.utcnow() - last_reading_time.replace(tzinfo=None)).total_seconds()
+                
+                # If no data in last 5 minutes, sensor might be disconnected
+                if time_since_reading > 300:
+                    return {
+                        "status": "no_data",
+                        "message": "No recent temperature readings (>5 min)",
+                        "last_reading_time": last_reading_time.isoformat(),
+                        "seconds_since_reading": int(time_since_reading)
+                    }
+            else:
+                return {"status": "no_data", "message": "No temperature data available"}
+        except Exception:
+            return {"status": "no_data", "message": "Unable to read temperature data"}
+        
+        if recent_fault:
+            return {
+                "status": "fault",
+                "message": recent_fault.message,
+                "alert_id": recent_fault.id,
+                "created_at": recent_fault.created_at.isoformat()
+            }
+        
+        return {"status": "ok", "message": "Sensor operating normally"}
+    finally:
+        db.close()
+
+# Acknowledge/dismiss a sensor fault alert
+@app.post("/alerts/{alert_id}/acknowledge")
+def acknowledge_alert(alert_id: int):
+    """Mark an alert as acknowledged"""
+    from database import SessionLocal
+    from models import Alert
+    db = SessionLocal()
+    try:
+        alert = db.query(Alert).filter(Alert.id == alert_id).first()
+        if not alert:
+            return {"status": "error", "message": "Alert not found"}
+        
+        alert.is_acknowledged = True
+        db.commit()
+        return {"status": "success", "message": "Alert acknowledged"}
+    finally:
+        db.close()
 
 # Power consumption simulation endpoint
 @app.get("/power")
