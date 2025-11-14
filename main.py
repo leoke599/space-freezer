@@ -147,6 +147,42 @@ def create_item(name: str, quantity: int = 1, location: str = None,
     code128 = barcode.get('code128', unique_code, writer=ImageWriter())
     code128.save(file_path)
 
+    # Check if we need to create an alert for this new item
+    if expiration_date:
+        from services.expiry import expiry_status
+        today = date.today()
+        status, days = expiry_status(expiration_date, today)
+        
+        alert_msg = None
+        alert_severity = None
+        
+        if status == "expired":
+            alert_msg = f"'{name}' is EXPIRED (expired {abs(days)} day(s) ago)."
+            alert_severity = "critical"
+        elif status == "urgent":
+            alert_msg = f"'{name}' expires in {days} day(s)."
+            alert_severity = "warning"
+        elif status == "soon":
+            alert_msg = f"'{name}' expires in {days} day(s)."
+            alert_severity = "info"
+        
+        # Create alert if needed
+        if alert_msg:
+            # Check if this exact alert already exists
+            existing = db.query(Alert).filter(
+                Alert.message == alert_msg,
+                Alert.resolved_at.is_(None)
+            ).first()
+            
+            if not existing:
+                db.add(Alert(
+                    type="inventory",
+                    severity=alert_severity,
+                    message=alert_msg,
+                    item_id=item.id
+                ))
+                db.commit()
+
     # Return item info + barcode image URL path
     return {
         "id": item.id,
@@ -167,6 +203,23 @@ def get_barcode(code: str):
 @app.get("/items/")
 def read_items(db: Session = Depends(get_db)):
     return db.query(Item).all()
+
+# Delete item
+@app.delete("/items/{item_id}")
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        return {"error": "Item not found"}
+    
+    # Delete barcode image if it exists
+    barcode_path = os.path.join(BARCODE_DIR, f"{item.code}.png")
+    if os.path.exists(barcode_path):
+        os.remove(barcode_path)
+    
+    # Delete the item (transactions will cascade delete if configured)
+    db.delete(item)
+    db.commit()
+    return {"message": "Item deleted successfully", "item_name": item.name}
 
 # Check out item
 @app.post("/items/{code}/check_out")
@@ -386,6 +439,31 @@ def get_temperature_status():
             }
         
         return {"status": "ok", "message": "Sensor operating normally"}
+    finally:
+        db.close()
+
+# Get all alerts
+@app.get("/alerts")
+def get_alerts(include_acknowledged: bool = False):
+    """Get all alerts, optionally including acknowledged ones"""
+    from database import SessionLocal
+    from models import Alert
+    db = SessionLocal()
+    try:
+        query = db.query(Alert)
+        if not include_acknowledged:
+            query = query.filter(Alert.is_acknowledged == False)
+        alerts = query.order_by(Alert.created_at.desc()).all()
+        return [{
+            "id": a.id,
+            "type": a.type,
+            "severity": a.severity,
+            "message": a.message,
+            "item_id": a.item_id,
+            "is_acknowledged": a.is_acknowledged,
+            "created_at": a.created_at.isoformat(),
+            "resolved_at": a.resolved_at.isoformat() if a.resolved_at else None
+        } for a in alerts]
     finally:
         db.close()
 

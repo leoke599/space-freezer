@@ -38,6 +38,21 @@ export default function Inventory() {
       .catch((err) => console.error(err));
   };
 
+  const handleDelete = async (itemId, itemName) => {
+    if (!confirm(`Are you sure you want to delete "${itemName}"? This will also delete its barcode.`)) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`${API_BASE_URL}/items/${itemId}`);
+      setFeedback({ type: "success", message: `"${itemName}" deleted successfully` });
+      fetchItems();
+    } catch (err) {
+      const message = err.response?.data?.detail || "Failed to delete item";
+      setFeedback({ type: "error", message });
+    }
+  };
+
   const toggleMode = (nextMode) => {
     if (mode !== nextMode) {
       setMode(nextMode);
@@ -206,65 +221,70 @@ export default function Inventory() {
       </div>
 
       {/* Inventory Header and Add Button */}
-      <div className="flex justify-between items-center mb-4">
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-500 text-white px-3 py-1 rounded"
-        >
-          {showForm ? "Cancel" : "Add Item"}
-        </button>
-      </div>
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="flex justify-between items-center mb-4">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+          >
+            {showForm ? "Cancel" : "+ Add Item"}
+          </button>
+        </div>
 
       {showForm && (
         <form onSubmit={handleSubmit} className="space-y-3 app-card border border-[var(--color-border-subtle)] p-4 rounded-lg mb-4 shadow-sm">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Item name"
-            required
-            className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
-          />
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="Quantity"
-            className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
-          />
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Location"
-            className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
-          />
-          <input
-            type="date"
-            value={expirationDate}
-            onChange={(e) => setExpirationDate(e.target.value)}
-            className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)]"
-          />
-          <input
-            type="number"
-            step="0.1"
-            value={tempReq}
-            onChange={(e) => setTempReq(e.target.value)}
-            placeholder="Temperature requirement"
-            className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Item name"
+              required
+              className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
+            />
+            <input
+              type="number"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="Quantity"
+              className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
+            />
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Location"
+              className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
+            />
+            <input
+              type="date"
+              value={expirationDate}
+              onChange={(e) => setExpirationDate(e.target.value)}
+              className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)]"
+            />
+            <input
+              type="number"
+              step="0.1"
+              value={tempReq}
+              onChange={(e) => setTempReq(e.target.value)}
+              placeholder="Temperature requirement (°C)"
+              className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-2 text-[var(--color-text-primary)] placeholder:text-slate-500 dark:placeholder:text-slate-400"
+            />
+          </div>
           
           {/* Nutrition Information Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowNutrition(!showNutrition)}
-            className="text-left text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-2"
-          >
-            {showNutrition ? "▼" : "▶"} Add Nutrition Information (Optional)
-          </button>
+          <div className="md:col-span-2">
+            <button
+              type="button"
+              onClick={() => setShowNutrition(!showNutrition)}
+              className="text-left text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-2"
+            >
+              {showNutrition ? "▼" : "▶"} Add Nutrition Information (Optional)
+            </button>
+          </div>
           
           {/* Collapsible Nutrition Fields */}
           {showNutrition && (
-            <div className="space-y-3 pl-4 border-l-2 border-blue-300 dark:border-blue-600">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="md:col-span-2 space-y-3 pl-4 border-l-2 border-blue-300 dark:border-blue-600">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <input
                   value={servingSize}
                   onChange={(e) => setServingSize(e.target.value)}
@@ -331,18 +351,22 @@ export default function Inventory() {
             </div>
           )}
           
-          <button
-            type="submit"
-            className="bg-green-500 text-white px-4 py-2 rounded"
-          >
-            Save
-          </button>
+          <div className="md:col-span-2">
+            <button
+              type="submit"
+              className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
+            >
+              💾 Save Item
+            </button>
+          </div>
         </form>
       )}
+      </div>
 
       {/* Search and Filter Section */}
+      <div className="max-w-6xl mx-auto px-4">
       <div className="app-card border border-[var(--color-border-subtle)] p-4 rounded-lg mb-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col md:flex-row gap-3">
           {/* Search Input */}
           <div className="flex-1">
             <input
@@ -407,6 +431,7 @@ export default function Inventory() {
 
       {/* Barcode Scanner Section */}
       <div className="border border-[var(--color-border-subtle)] rounded-lg p-4 app-card mb-6 shadow-sm">
+
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-2">
             <button
@@ -465,8 +490,12 @@ export default function Inventory() {
           </div>
         )}
       </div>
+      </div>
 
-      <table className="w-full border border-[var(--color-border-subtle)] text-left text-sm app-card shadow-sm">
+      {/* Items Table */}
+      <div className="max-w-6xl mx-auto px-4 pb-8">
+      <div className="overflow-x-auto rounded-lg border border-[var(--color-border-subtle)] shadow-sm">
+      <table className="w-full text-left text-sm app-card">
         <thead>
           <tr className="bg-[var(--color-panel)]">
             <th className="border border-[var(--color-border-subtle)] px-2 py-2 font-semibold uppercase tracking-wide text-xs text-muted">
@@ -481,23 +510,63 @@ export default function Inventory() {
             <th className="border border-[var(--color-border-subtle)] px-2 py-2 font-semibold uppercase tracking-wide text-xs text-muted">
               Expiration
             </th>
-            <th className="border border-[var(--color-border-subtle)] px-2 py-2 font-semibold uppercase tracking-wide text-xs text-muted">
+            <th className="border border-[var(--color-border-subtle)] px-3 py-2 font-semibold uppercase tracking-wide text-xs text-muted">
               Code
+            </th>
+            <th className="border border-[var(--color-border-subtle)] px-3 py-2 font-semibold uppercase tracking-wide text-xs text-muted">
+              Actions
             </th>
           </tr>
         </thead>
         <tbody>
-          {filteredItems.map((item) => (
-            <tr key={item.id} className="border-b border-[var(--color-border-subtle)] even:bg-[var(--color-panel)]">
-              <td className="border border-[var(--color-border-subtle)] px-2 py-2">{item.name}</td>
-              <td className="border border-[var(--color-border-subtle)] px-2 py-2">{item.quantity}</td>
-              <td className="border border-[var(--color-border-subtle)] px-2 py-2">{item.location || "-"}</td>
-              <td className="border border-[var(--color-border-subtle)] px-2 py-2">{item.expiration_date || "-"}</td>
-              <td className="border border-[var(--color-border-subtle)] px-2 py-2 font-mono">{item.code}</td>
-            </tr>
-          ))}
+          {filteredItems.map((item) => {
+            const status = getExpiryStatus(item.expiration_date);
+            const statusColors = {
+              expired: "bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500",
+              urgent: "bg-orange-100 dark:bg-orange-900/30 border-l-4 border-orange-500",
+              soon: "bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-yellow-500",
+              ok: "",
+              no_date: ""
+            };
+            
+            return (
+              <tr key={item.id} className={`border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-panel)] transition-colors ${statusColors[status]}`}>
+                <td className="px-3 py-3 font-medium">{item.name}</td>
+                <td className="px-3 py-3 text-center">
+                  <span className="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full text-sm font-semibold">
+                    {item.quantity}
+                  </span>
+                </td>
+                <td className="px-3 py-3">{item.location || "-"}</td>
+                <td className="px-3 py-3">
+                  {item.expiration_date ? (
+                    <div className="flex flex-col">
+                      <span>{item.expiration_date}</span>
+                      {status === "expired" && <span className="text-xs text-red-600 dark:text-red-400 font-semibold">EXPIRED</span>}
+                      {status === "urgent" && <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">URGENT</span>}
+                      {status === "soon" && <span className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold">SOON</span>}
+                    </div>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                <td className="px-3 py-3 font-mono text-xs">{item.code}</td>
+                <td className="px-3 py-3">
+                  <button
+                    onClick={() => handleDelete(item.id, item.name)}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                    title="Delete item and barcode"
+                  >
+                    🗑️ Delete
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+      </div>
+      </div>
     </div>
   );
 }

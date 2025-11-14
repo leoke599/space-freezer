@@ -7,10 +7,12 @@ import Dashboard from './dashboard';
 import Power from './power';
 import Settings from './settings';
 import Nutrition from './nutrition';
+import AlertNotifications from './AlertNotifications';
 
 function App() {
   return (
     <Router>
+      <AlertNotifications />
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/temperature" element={<Temperature />} />
